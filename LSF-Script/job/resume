@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# Copyright (c) Huawei Technologies Co., Ltd. 2018-2022. All rights reserved.
+#
+# An example script for resuming a job in a LSF cluster.
+#
+# To enable this script, rename this file to "resume".
+
+# PROFILE_PATH:  Profile file path of the scheduler.
+PROFILE_PATH=@SCHEDULER_PROFILE_PATH@
+if [ -f "$PROFILE_PATH" ]; then
+    source "$PROFILE_PATH"
+else
+    echo "Failed to run the command. Failed to set up the environment." >&2
+    exit 2
+fi
+
+if [ "$#" -gt 0 ]; then
+    out=`timeout 10 bresume "$@" 2>&1`
+else
+    echo "Failed to run the command. The job ID list is not found." >&2
+    exit 2
+fi
+
+exit_code=$?
+if [ "${exit_code}" -eq 0 ]; then
+   echo ${out}
+else
+   echo ${out} >&2
+   exit ${exit_code}
+fi

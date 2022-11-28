@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# Copyright (c) Huawei Technologies Co., Ltd. 2018-2022. All rights reserved.
+#
+# An example script for querying the active queue in a LSF cluster.
+#
+# To enable this script, rename this file to "query-active".
+
+# PROFILE_PATH:  Profile file path of the scheduler.
+PROFILE_PATH=@SCHEDULER_PROFILE_PATH@
+if [ -f "$PROFILE_PATH" ]; then
+    source "$PROFILE_PATH"
+else
+    echo "Failed to run the command. Failed to set up the environment." >&2
+    exit 2
+fi
+
+timeout 10 bqueues -o "QUEUE_NAME"
