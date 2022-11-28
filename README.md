@@ -19,7 +19,7 @@ Python2/Python3
 
 #### 操作教程
 
-1. 从网址 https://gitee.com/openeuler/portal-mulit-cluster-script下载压缩包, 解压至{INSTALL_PATH}/huawei/portal/ac/scripts/scheduler/{SCHEDULER_TYPE}/目录下；
+1. 从网址 https://gitee.com/openeuler/portal-mulit-cluster-script 下载压缩包, 解压至{INSTALL_PATH}/huawei/portal/ac/scripts/scheduler/{SCHEDULER_TYPE}/目录下；
 
    注：INSTALL_PATH为client安装目录，SCHEDULER_TYPE为调度器类型
 
