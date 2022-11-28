@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import copy
+import json
+import os
+import re
+
+#输出示例.
+# [{
+# 	"nativeResources": {
+# 		"loadResources": {
+# 			"cpuFree": "",
+# 			"gpuFree": "",
+# 			"memFree": "135508.0M"
+# 		},`
+# 		"mCpu": "40",
+# 		"mGpu": "",
+# 		"mem": "187.2G"
+# 	},
+# 	"nodeName": "hpc61",
+# 	"numaInfo": {
+# 		"architecture": "X86_64"
+# 	},
+# 	"powerSavingStatus": "",
+# 	"status": "",
+# 	"originStatus": "ok"
+# }, {
+# 	"nativeResources": {
+# 		"loadResources": {
+# 			"cpuFree": "",
+# 			"gpuFree": "",
+# 			"memFree": "500000M"
+# 		},
+# 		"mCpu": "80",
+# 		"mGpu": "",
+# 		"mem": "500g"
+# 	},
+# 	"nodeName": "hpc62",
+# 	"numaInfo": {
+# 		"architecture": "ios"
+# 	},
+# 	"powerSavingStatus": "",
+# 	"status": "",
+# 	"originStatus": ""
+# }]
+
+LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 lsload -w'
+
+nodeloads = os.popen(LSLOAD_CMD).read()
+nodeloadstr = nodeloads.split("\n")
+nodes = []
+for index in range(1, len(nodeloadstr) - 1):
+    temp=dict(zip(nodeloadstr[0].split(),nodeloadstr[index].split()))
+    nodes.append(temp)
+
+
+#lshosts客户不支持-json -o形式，需要另外处理
+LSHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 lshosts -w'
+
+#执行lshosts获取返回结果 返回cpu总数+内存总大小+架构类型
+nodehost = os.popen(LSHOSTS_CMD).read()
+#通过换行符分割，但是去掉首尾，只对中间进行遍历
+nodehosts = nodehost.split("\n")
+#执行lshosts 获取lshost的结果集
+hosts=[]
+for i in range(1,len(nodehosts)-1):
+    host=dict(zip(nodehosts[0].split(),nodehosts[i].split()))
+    hosts.append(host)
+
+#通过bslots 获取可用cpu数
+BSLOTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 bslots -l'
+slotsinfo = os.popen(BSLOTS_CMD).read()
+slotsinfostr = slotsinfo.split("\n")
+slotstr = []
+if len(slotsinfostr) > 2:
+    tmpslotinfostr = slotsinfostr[2].split(" ")
+    slotstr = tmpslotinfostr[4:len(tmpslotinfostr)-1]
+
+slots = {}
+for index in range(0, len(slotstr)):
+    tmp=slotstr[index].split("*")
+    slots[tmp[1]] = tmp[0]
+
+nodeArrayList = []
+for nodearry in nodes:
+    output = {"nativeResources": {"loadResources": {"cpuFree": slots[nodearry['HOST_NAME']] if slots.keys().__contains__(nodearry['HOST_NAME']) else 0,"gpuFree": "","memFree": nodearry['mem'] if nodearry.keys().__contains__('mem') else None},"mCpu": "","mGpu": "","mem": ""},
+    "nodeName": nodearry['HOST_NAME'],"numaInfo": {"architecture": ""},"powerSavingStatus": "",
+    "status": "","originStatus": ""}
+    nodeArrayList.append(output)
+
+
+#执行bhosts
+BHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 bhosts -o "HOST_NAME STATUS NGPUS"'
+bhosts = os.popen(BHOSTS_CMD).read()
+bhoststr = bhosts.split("\n")
+bhosts = []
+for index in range(1, len(bhoststr) - 1):
+    temp=dict(zip(bhoststr[0].split(),bhoststr[index].split()))
+    bhosts.append(temp)
+
+#基于第三方调度器向DONAU调度器状态映射Map
+statusMap = {'ok': 'OKAY', 'closed': 'CLOSED', 'closed_Adm': 'CLOSED','closed_Busy': 'CLOSED','closed_EGO': 'CLOSED','closed_Excl': 'CLOSED','closed_LIM': 'CLOSED',
+'closed_Lock': 'CLOSED','closed_Wind': 'CLOSED','closed_RC': 'CLOSED','closed_CU_excl': 'CLOSED','unavail': 'UNAVAILABLE', 'unreach': 'UNAVAILABLE', 'closed_Full': 'CLOSED'}
+
+for hostinfo in nodeArrayList:
+    for bhost in bhosts:
+        if bhost['HOST_NAME'] == hostinfo['nodeName']:
+            hostinfo['originStatus'] = bhost['STATUS']
+            hostinfo['status'] = str(statusMap[bhost['STATUS']] if statusMap.keys().__contains__(bhost['STATUS']) else unknow)
+            hostinfo['nativeResources']['mGpu'] = bhost['NGPUS']
+    for host in hosts:
+        if host['HOST_NAME'] == hostinfo['nodeName']:
+            hostinfo['nativeResources']['mCpu'] = host['ncpus']
+            hostinfo['nativeResources']['mem'] = host['maxmem']
+            hostinfo['numaInfo']['architecture'] = host['type']
+            if (hostinfo['status'] == 'CLOSED' and hostinfo['nativeResources']['loadResources']['cpuFree'] == 0):
+                    hostinfo['nativeResources']['loadResources']['cpuFree'] = host['ncpus']
+outputStr = json.dumps(nodeArrayList)
+print(outputStr)

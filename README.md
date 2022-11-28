@@ -1,23 +1,76 @@
 # portal-mulit-cluster-script
 
 #### 介绍
-portal-mulit-cluster-script provide some scripts for other Scheduler Users to submit and manage jobs in Donau cluster environment
+多瑙管理平台（Donau Portal）实现了Donau Portal对接和管理多个不同类型计算集群的能力，针对非Donau类型的调度器集群，需要根据Donau的规则输出进行对应的第三方脚本脚本适配。portal-mulit-cluster-script提供了Donau Portal对接LSF类型集群的最佳实际脚本，方便用户参考集成。目前支持的脚本有：
+
+LSF节点信息采集脚本: node,nodeSample
+
+LSF作业信息采集脚本: job,jobSample
+
+LSF作业提交脚本: submit
+
+LSF作业操作脚本: stop, resume,rerun,suspend
+
+LSF队列查询脚本: query-active
 
 #### 软件架构
-软件架构说明
+Python2/Python3
 
 
-#### 安装教程
+#### 操作教程
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1. 从网址 https://gitee.com/openeuler/portal-mulit-cluster-script下载压缩包, 解压至{INSTALL_PATH}/huawei/portal/ac/scripts/scheduler/{SCHEDULER_TYPE}/目录下；
+
+   注：INSTALL_PATH为client安装目录，SCHEDULER_TYPE为调度器类型
+
+2.  更改脚本的属主为client安装用户，权限为644
+
+3.  执行以下命令，修改脚本文件中的环境变量参数
+
+    ```sh
+    sed -i "s#@SCHEDULER_PROFILE_PATH@#/opt/lsf/conf/profile.lsf#g" `grep @SCHEDULER_PROFILE_PATH@ -rl /opt/huawei/portal/ac/scripts/scheduler/LSF`
+    ```
+
+    注：/opt/lsf/conf/profile.lsf为LSF调度器环境变量路径；/opt/huawei/portal/ac/scripts/scheduler/LSF为当前client节点调取器脚本目录
+
+4.  修改脚本文件的fileformat文件格式为unix（如果安装了dos2unix，可以使用dos2unix filename1 filename2 filename3转换多个文件，若未安装dos2unix，可按照下面步骤修改文件格式）
+
+    a)     vim filename
+
+    b)     输入:set ff=unix，然后回车
+
+    c)     :wq!保存文件
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1. 使用PuTTY工具，以root用户登录Donau Portal Client节点。
+
+2. <span id="step2">切换至远程集群脚本目录。</span>
+
+   **cd** */opt/huawei*/**portal/ac/scripts/scheduler/**scheduler_type
+
+   >**说明**
+   >
+   >*  “/opt/huawei”为Donau Portal安装路径。
+   >*  “scheduler_type”为第三方调度器类型。
+   >*  脚本权限均为644。
+   >*  脚本属主和属组均为Donau Portal运维管理员（如ccp_master）及其用户组。
+
+3. <span id="step3">集成作业脚本。</span>
+
+   远程集群脚本输入输出参数说明请参见《多集群使用指导说明书》。
+
+   >**须知**
+   >
+   >* 用户业务场景中会集成多种应用，且应用集成较复杂，Donau Portal无法预测脚本中的命令输入，用户需确保脚本的安全性，防止恶意命令的注入。
+   >* node目录和collection目录下脚本提供“主机”、“监控中心”、“作业管理”中主机和作业信息来源，若某些字段采集不到，则“主机”、“监控中心”、“作业管理”中该字段对应信息将无法显示。
+
+4. 使用PuTTY工具，以root用户登录Donau Portal节点（若为HA场景，需登录主备Donau Portal节点）。参考[步骤2](#step2)[步骤3](#step3)修改集成脚本。
+
+#### 注意事项
+
+1. 当前脚本适配是针对HPC_22.0.0之后的版本；
+2. 严格按照操作步骤执行，否则可能会导致脚本执行失败
 
 #### 参与贡献
 

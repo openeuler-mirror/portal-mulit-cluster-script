@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import copy
+import json
+import os
+import time
+
+LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 lsload -w'
+
+nodeloads = os.popen(LSLOAD_CMD).read()
+nodeloadstr = nodeloads.split("\n")
+nodes = []
+for index in range(1, len(nodeloadstr) - 1):
+    temp=dict(zip(nodeloadstr[0].split(),nodeloadstr[index].split()))
+    nodes.append(temp)
+
+LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 lsload -o "HOST_NAME io"'
+
+nodeioloads = os.popen(LSLOAD_CMD).read()
+nodeioloadstr = nodeioloads.split("\n")
+nodesio = {}
+for index in range(1, len(nodeloadstr) - 1):
+    nodesio[nodeioloadstr[index].split(" ")[0]] = nodeioloadstr[index].split(" ")[1]
+
+BHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 bhosts -o "HOST_NAME STATUS NGPUS"'
+bhosts = os.popen(BHOSTS_CMD).read()
+bhoststr = bhosts.split("\n")
+bhosts = []
+for index in range(1, len(bhoststr) - 1):
+    temp=dict(zip(bhoststr[0].split(),bhoststr[index].split()))
+    bhosts.append(temp)
+
+#lshosts客户不支持-json -o形式，需要另外处理
+LSHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 lshosts -w'
+
+#执行lshosts获取返回结果 返回cpu总数+内存总大小+架构类型
+nodehost = os.popen(LSHOSTS_CMD).read()
+nodehoststr = nodehost.split("\n")
+hosts = []
+for index in range(1, len(nodehoststr) - 1):
+    temp=dict(zip(nodehoststr[0].split(),nodehoststr[index].split()))
+    hosts.append(temp)
+
+#通过lsclusters获取集群名称+主机名称
+LSCLUSTERS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 lsclusters -w'
+clusterinfo = os.popen(LSCLUSTERS_CMD).read()
+clusterinfostr = clusterinfo.split("\n")
+bclusterinfo = []
+for index in range(1, len(clusterinfostr) - 1):
+    temp=dict(zip(clusterinfostr[0].split(),clusterinfostr[index].split()))
+    bclusterinfo.append(temp)
+
+#通过bslots 获取可用cpu数
+BSLOTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 bslots -l'
+slotsinfo = os.popen(BSLOTS_CMD).read()
+slotsinfostr = slotsinfo.split("\n")
+slotstr = []
+if len(slotsinfostr) > 2:
+    tmpslotinfostr = slotsinfostr[2].split(" ")
+    slotstr = tmpslotinfostr[4:len(tmpslotinfostr)-1]
+
+slots = {}
+for index in range(0, len(slotstr)):
+    tmp=slotstr[index].split("*")
+    slots[tmp[1]] = tmp[0]
+
+nodeArrayList = []
+
+timeresult = time.localtime(time.time())
+timelist = list(timeresult)
+timelist[4] = int(timeresult.tm_min/5)*5
+timelist[5] = 0
+timeresult = tuple(timelist)
+result = time.localtime(time.mktime(timeresult))
+sampletime = time.strftime('%Y/%m/%d %H:%M:%S',result)
+
+nodeinfoTmp = {'status': None, 'tmp': None, 'mem': None, 'r15m': None, 'r15s': None, 'ls': None, 'it': None,
+               'HOST_NAME': None, 'ut': None, 'swp': None, 'r1m': None, 'pg': None}
+for nodeinfo in nodes:
+    for key in nodeinfo.keys():
+        nodeinfoTmp[key] = nodeinfo[key]
+    memFreeTmp = None
+    if nodeinfoTmp['mem'] != None:
+        memFreeTmp = int(float(nodeinfoTmp['mem'][:-1]) * 1024) if nodeinfoTmp['mem'][-1:] == 'G' else int(
+            float(nodeinfoTmp['mem'][:-1]))
+    output = {
+        "cluster": "",
+        "timeStampL": sampletime,
+        "sampleInterval": "300",
+        "hostName": nodeinfoTmp['HOST_NAME'],
+        "state": "",
+        "core": "",
+        "coreFree": int(slots[nodeinfoTmp['HOST_NAME']]) if slots.keys().__contains__(nodeinfoTmp['HOST_NAME']) else 0,
+        "mem": "",
+        "memFree": memFreeTmp,
+        "gpu": "",
+        "gpuFree": None,
+        "swap": "",
+        "swapFree": int(float(nodeinfoTmp['swp'][:-1]) * 1024) if nodeinfoTmp['swp'] != None else None,
+        "tmp": None,
+        "tmpFree": int(float(nodeinfoTmp['tmp'][:-1])) if nodeinfoTmp['tmp'] != None else None,
+        "cpuUtil": float(nodeinfoTmp['ut'][:-1]) / 100 if nodeinfoTmp['ut'] != None else None,
+        "loadAverage": None,
+        "ioRate": nodesio[nodeinfoTmp['HOST_NAME']] if nodesio[nodeinfoTmp['HOST_NAME']] != '-' else None,
+        "pageRate": nodeinfoTmp['pg'] if nodeinfoTmp['pg'] != None else None,
+        "idleTime": None,
+        "belongResourcePool": None,
+        "numaNum": None,
+        "coreNum": None,
+        "threadNum": None,
+        "socketNum": None,
+        "cpuBuildType": "",
+        "cpuModel": "",
+        "cpuBasic": None
+    }
+    nodeArrayList.append(output)
+
+# 基于第三方调度器向DONAU调度器状态映射Map
+statusMap = {'ok': 'OKAY', 'closed': 'CLOSED', 'closed_Adm': 'CLOSED', 'closed_Busy': 'CLOSED', 'closed_EGO': 'CLOSED',
+             'closed_Excl': 'CLOSED', 'closed_LIM': 'CLOSED',
+             'closed_Lock': 'CLOSED', 'closed_Wind': 'CLOSED', 'closed_RC': 'CLOSED', 'closed_CU_excl': 'CLOSED',
+             'unavail': 'UNAVAILABLE', 'unreach': 'UNAVAILABLE', 'closed_Full': 'CLOSED'}
+
+for hostinfo in nodeArrayList:
+    for host in hosts:
+        if host['HOST_NAME'] == hostinfo['hostName']:
+            hostinfo['core'] = None if host['ncpus'] == '-' else host['ncpus']
+            hostinfo['mem'] = None if host['maxmem'] == '-' else int(float(host['maxmem'][:-1])*1024)
+            hostinfo['swap'] = None if host['maxswp'] == '-' else int(float(host['maxswp'][:-1])*1024)
+            hostinfo['cpuModel'] = host['model']
+            hostinfo['cpuBuildType'] = 'x86_64' if host['type'] == 'X86_64' else host['type']
+    for bhost in bhosts:
+        if bhost['HOST_NAME'] == hostinfo['hostName']:
+            hostinfo['state'] = str(
+                statusMap[bhost['STATUS']] if statusMap.keys().__contains__(bhost['STATUS']) else unknow)
+            hostinfo['gpu'] = bhost['NGPUS']
+    for cluster in bclusterinfo:
+        hostinfo['cluster'] = cluster['CLUSTER_NAME']
+    if hostinfo['core'] == None:
+        hostinfo['coreFree'] = None
+        hostinfo['cpuUtil'] = None
+    if hostinfo['gpu'] == None:
+        hostinfo['gpuFree'] = None
+    if hostinfo['mem'] == None:
+        hostinfo['memFree'] = None
+    if hostinfo['swap'] == None:
+        hostinfo['swapFree'] = None
+    if hostinfo['tmp'] == None:
+        hostinfo['tmpFree'] = None
+
+outputStr = json.dumps(nodeArrayList)
+print(outputStr)

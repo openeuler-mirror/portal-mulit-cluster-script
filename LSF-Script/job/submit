@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# Copyright (c) Huawei Technologies Co., Ltd. 2018-2022. All rights reserved.
+#
+# An example script for submitting a job to a LSF cluster.
+# Method "submit_job" needs to be declared in this script for job submission.
+#
+# To enable this script, rename this file to "submit".
+#
+# Available environment variables for the script:
+#   _TEMPLATE_NAME: Name of the job template.
+#   VNC_DISPLAY_FLAG: Identifier for submitting an interactive job.
+#   _SECURITY_LEVEL: Security level of the job.
+#   _PRE_EXEC_SCRIPT_PATH: Pre-execution script for remote data file transfer.
+#   _POST_EXEC_SCRIPT_PATH: Pre-execution script for job data file transfer.
+#   JOB_DIR: Submit job dir.
+#
+# Requires for method "submit_job":
+#   Input Parameters: Command parameters that are combined with user scripts and commit parameters.
+#   Output format: The Job ID returned by the scheduler.
+#   Error format: Error code and error information returned by the scheduler.
+#   Exit Code: If the job is submitted successfully, the exit code is 0. Otherwise, the exit code is 2.
+#
+# Requires for method "submit_preview":
+#   Input Parameters: Command parameters that are combined with user scripts and commit parameters.
+#   Output format: Command for the scheduler to submit a job.
+
+# PROFILE_PATH:  Profile file path of the scheduler.
+if [ -z "${_JOB_PATH}" ]; then
+    JOB_DIR=$(echo "$OUT_DIR" | awk -F / -v OFS="/" '{$NF=""}1')
+else
+    JOB_DIR=${_JOB_PATH}
+fi
+PROFILE_PATH=@SCHEDULER_PROFILE_PATH@
+if [ "X${_PREVIEW_COMMAND}" != "Xtrue" ]; then
+   if [ -f "$PROFILE_PATH" ]; then
+     source "$PROFILE_PATH"
+   else
+     echo "Failed to run the command. Failed to set up the environment." >&2
+     exit 2
+   fi
+fi
+
+submit_job() {
+    if [ "$_IS_DATA_TRANSFER" == "false" ]; then
+       submit_result=$(echo timeout 10 bsub -outdir ${JOB_DIR} -o ${JOB_DIR}out.log -e ${JOB_DIR}error.log  -Jd "TEMPLATE=${_TEMPLATE_NAME},DISPLAY_FLAG=${VNC_DISPLAY_FLAG},SECURITY_LEVEL=${_SECURITY_LEVEL}" "$@" | bash)
+    else
+       submit_result=$(echo timeout 10 bsub -E ${_PRE_EXEC_SCRIPT_PATH} -Ep ${_POST_EXEC_SCRIPT_PATH} -outdir ${JOB_DIR} -o ${JOB_DIR}out.log -e ${JOB_DIR}error.log  -Jd "TEMPLATE=${_TEMPLATE_NAME},DISPLAY_FLAG=${VNC_DISPLAY_FLAG},SECURITY_LEVEL=${_SECURITY_LEVEL}" "$@" | bash)
+    fi
+    ret_value=$?
+
+    if [ $ret_value -eq 0 ]; then
+        job_result=$(echo "$submit_result" | awk -F'[<|>]' '{print $2}')
+    else
+        job_result=$submit_result
+    fi
+
+    if [ "$ret_value" -eq 0 ]; then
+        echo "The job has been submitted successfully. Job ID is: [$job_result]."
+    elif [ "$ret_value" -eq 124 ]; then
+        echo "$ret_value" 1>&2
+        exit "$ret_value"
+    else
+        echo "$job_result" 1>&2
+    fi
+}
+
+submit_preview() {
+      echo "bsub -outdir ${JOB_DIR} -o ${JOB_DIR}out.log -e ${JOB_DIR}error.log -Jd TEMPLATE=${_TEMPLATE_NAME},DISPLAY_FLAG=${VNC_DISPLAY_FLAG},SECURITY_LEVEL=${_SECURITY_LEVEL}" "$@"
+}

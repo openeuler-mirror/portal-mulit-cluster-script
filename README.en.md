@@ -1,22 +1,73 @@
 # portal-mulit-cluster-script
 
 #### Description
-portal-mulit-cluster-script provide some scripts for other Scheduler Users to submit and manage jobs in Donau cluster environment
+The Donau Portal enables the Donau Portal to connect to and manage multiple computing clusters of different types. For non-Donau scheduler clusters, third-party scripts need to be adapted based on the Donau rule output. portal-mulit-cluster-script provides the best script for connecting the Donau Portal to an LSF cluster. Currently, the following scripts are supported:
+
+```
+LSF Node Information Collection Script: node, nodeSample
+LSF Job Information Collection Script : job, jobSample
+LSF Job Submission Script             : submit
+LSF Job Operation Script              : stop, resume, rerun, suspend
+LSF Queue Query Script                : query-active
+```
 
 #### Software Architecture
-Software architecture description
+Python2/Python3
 
-#### Installation
+#### Operation 
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1. Download the compressed package from  https://gitee.com/openeuler/portal-mulit-cluster-script and decompress it to the {INSTALL_PATH}/huawei/portal/ac/scripts/scheduler/{SCHEDULER_TYPE}/  directory.
+
+   Note: INSTALL_PATH is the client installation directory and SCHEDULER_TYPE is the scheduler type.
+
+2. Change the owner of the script to the client installation user with permission 644.
+
+3. Execute the following command to modify the environment variable parameters in the script file:
+
+   ```sh
+   sed -i "s#@SCHEDULER_PROFILE_PATH@#/opt/lsf/conf/profile.lsf#g" `grep @SCHEDULER_PROFILE_PATH@ -rl /opt/huawei/portal/ac/scripts/scheduler/LSF`
+   ```
+
+   Note: /opt/lsf/conf/profile.lsf is the environment variable path of the LSF scheduler; /opt/huawei/portal/ac/scripts/scheduler/LSF is the script directory of the current client node caller.
+
+4. Modify the fileformat file format of the script file to unix (if dos2unix is installed, you can use dos2unix filename1 filename2 filename3 to convert multiple files, if dos2unix is not installed, you can follow the steps below to modify the file format.)
+
+   a)     vim filename
+
+   b)     Input:set ff=unix，then press Enter
+
+   c)     :wq!Save the file.
 
 #### Instructions
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1. Use PuTTY to log in to the Donau Portal Client node as user root.
+
+2. <span id="step2">Switch to the remote cluster script directory.</span>
+
+   **cd** */opt/huawei*/**portal/ac/scripts/scheduler/**scheduler_type
+
+   >**Description**
+   >
+   >* "/opt/huawei" is the installation path of Donau Portal.
+   >* "scheduler_type" is the third-party scheduler type.
+   >* Script permissions are all 644.
+   >* The script owner and group are Donau Portal operation and maintenance administrators (such as ccp_master) and their user groups.
+
+3. <span id="step3">Integrated job scripts.</span>
+
+   For the description of the input and output parameters of the remote cluster script, please refer to the "Multi-cluster User Guide".
+
+   > **Notice**
+   >
+   > * Multiple applications will be integrated in the user's business scenario, and the application integration is complex. Donau Portal cannot predict the command input in the script. Users need to ensure the security of the script to prevent the injection of malicious commands.
+   > * The scripts under the node directory and collection directory provide host and job information sources in "host", "monitoring center" and "job management". If some fields cannot be collected, "host", "monitoring center", "job management" The information corresponding to this field will cannot be displayed.
+
+4. Use the PuTTY tool to log in to the Donau Portal node as the root user (In an HA scenario, log in to the active and standby Donau Portal nodes). Refer to [Step 2](#step2) [Step 3](#step3) to modify the integration script.
+
+#### Precautions
+
+1.  The current script adaptation is for versions after HPC_22.0.0;
+2.  Strictly follow the operation steps, otherwise the script may fail to execute.
 
 #### Contribution
 
