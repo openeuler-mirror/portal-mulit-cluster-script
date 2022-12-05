@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import copy
+import json
+import os
+import math
+import datetime
+import calendar
+
+# expected output format:
+# [{"jobId":"2035","jobIndex":"1","jobName":"new[1]","user":"admin","sourceCluster":"cluster1","stat":"DONE",
+# "queue":"normal01","fromHost":"host2","submitTime":"Jun 16 17:43:11 2021","startTime":"Jun 16 17:43:12 2021",
+# "finishTime":"Jun 16 17:44:54 2021","execHome":"/home/admin","outputFile":"","errorFile":"","jobPriority":"","
+# execHost":"host2","CPU_USED":"00:00:02","jobDescription":"","exitCode":"","pendReason":"","jobRunTime":"00:01:42"}]
+JOB_INFOS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
+                'timeout 10 bjobs -a -u all -hms -o \"jobid jobindex job_name user source_cluster stat ' \
+                'queue from_host submit_time start_time finish_time exec_home output_dir output_file error_file job_priority ' \
+                'exec_host job_description exit_code exit_reason pend_reason run_time delimiter=\'^\'\"'
+
+ARRAY_JOB_INFO_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bjobs -A -w '
+
+# jobstatemap for ccp
+statMap = {'UNKWN': -1, 'RUN': 4, 'PSUSP': 2, 'USUSP': 2, 'SSUSP': 10, 'PEND': 1, 'DONE': 9, 'EXIT': 5, 'WAIT': 3, 'ZOMBI': -1}
+
+# 作业查询字段数组
+jobFields = ['JOBID','JOBINDEX','JOB_NAME','USER','SOURCE_CLUSTER','STAT','QUEUE','FROM_HOST','SUBMIT_TIME','START_TIME','FINISH_TIME','EXEC_HOME','OUTPUT_DIR','OUTPUT_FILE','ERROR_FILE','JOB_PRIORITY','EXEC_HOST','JOB_DESCRIPTION','EXIT_CODE','EXIT_REASON','PEND_REASON','RUN_TIME']
+
+# 聚合数组作业父作业状态
+# arrayJobInfoValue 格式样例：[0, 0, 5, 0, 0, 0] 状态依次为PEND DONE  RUN EXIT （USUSP+PSUSP）SSUSP
+def aggJobState(parentJobinfo, arrayJobStatArr):
+    if len(arrayJobStatArr) < 7:
+        parentJobinfo['stat'] = 'UNKWN'
+        return
+    runNum = int(arrayJobStatArr[2])
+    if runNum > 0:
+        parentJobinfo['stat'] = 'RUN'
+        return
+    usupNum = int(arrayJobStatArr[4])
+    if usupNum > 0:
+        parentJobinfo['stat'] = 'USUSP'
+        return
+    ssuspNum = int(arrayJobStatArr[5])
+    if ssuspNum > 0:
+        parentJobinfo['stat'] = 'SSUSP'
+        return
+    pendNum = int(arrayJobStatArr[0])
+    if pendNum > 0:
+        parentJobinfo['stat'] = 'PEND'
+        return
+    exitNum = int(arrayJobStatArr[3])
+    if exitNum > 0:
+        parentJobinfo['stat'] = 'EXIT'
+        return
+    doneNum = int(arrayJobStatArr[1])
+    if doneNum > 0:
+        parentJobinfo['stat'] = 'DONE'
+        return
+    doneNum = int(arrayJobStatArr[6])
+    if doneNum > 0:
+        parentJobinfo['stat'] = 'ZOMBI'
+        return
+    parentJobinfo['stat'] = 'UNKWN'
+    return
+
+# 转换作业数据为json格式
+def strToJson(jobInfoStr):
+    jobInfoArr = jobInfoStr.split("^")
+    jobInfo = {}
+    for index in range(len(jobFields)):
+        field = jobInfoArr[index]
+        if field == '-':
+            field = ''
+        jobInfo[jobFields[index]] = field
+    return jobInfo
+
+jobInfos = os.popen(JOB_INFOS_CMD).read()
+jobInfosArr = jobInfos.strip().split("\n")
+
+# 数组作业状态表 {'jobId':'PEND,DONE,RUN,EXIT,SSUSP,USUSP,PSUSP'}
+arrayJobStatDict = {}
+# 构造非数组作业及数组作业子作业信息 及数组作业状态表
+nonArrayJobList = []
+for index in range(len(jobInfosArr)):
+    if index == 0:
+        continue
+    jobInfo = strToJson(jobInfosArr[index])
+    jobInfo['OUTPUT_DIR'] = jobInfo['OUTPUT_DIR'].rstrip('/')
+    if not statMap.has_key(jobInfo['STAT']):
+        statMap[jobInfo['STAT']]=-1
+        
+    # 补全时间的年份和秒
+    year_start = ""
+    year_submit = ""
+    year_end = ""
+
+    now = datetime.datetime.now()
+    year = now.year
+    month_now = now.month
+    day_now = now.day
+    
+    submitTime = jobInfo['SUBMIT_TIME']
+    if submitTime != "" :
+        month_start = list(calendar.month_abbr).index(submitTime.split(" ")[0])
+        day_start = submitTime.split(" ")[2]
+
+        if int(month_now) < int(month_start):
+            year_submit = str(int(year) - 1)
+        if month_now == month_start:
+            if int(day_now) < int(day_start):
+                year_submit = str(int(year) - 1)
+            else:
+                year_submit = year
+        if int(month_now) > int(month_start):
+            year_submit = year
+
+    startTime = jobInfo['START_TIME']
+    if startTime != "" :
+        month_start = list(calendar.month_abbr).index(startTime.split(" ")[0])
+        day_start = startTime.split(" ")[2]
+
+        if int(month_now) < int(month_start):
+            year_start = str(int(year) - 1)
+        if month_now == month_start:
+            if int(day_now) < int(day_start):
+                year_start = str(int(year) - 1)
+            else:
+                year_start = year
+        if int(month_now) > int(month_start):
+            year_start = year
+
+    endTime = jobInfo['FINISH_TIME']
+    month_end = ""
+    day_end = ""
+    if endTime != "":
+        month_end = list(calendar.month_abbr).index(endTime.split(" ")[0])
+        day_end = endTime.split(" ")[2]
+        if int(month_start) < int(month_end):
+            year_end = year
+        if int(month_start) == int(month_end):
+            if int(day_start) <= int(day_end):
+                year_end = year
+            else:
+                year_end = str(int(year_start) + 1)
+        if int(month_start) > int(month_end):
+            year_end = str(int(year_start) + 1)
+
+        if int(month_end) > int(month_now):
+            year_end = str(int(year) - 1)
+            year_start = str(int(year_start) - 1)
+        if int(month_end) == int(month_now):
+            if int(day_end) > int(day_now):
+                year_end = str(int(year) - 1)
+                year_start = str(int(year_start) - 1)
+
+    if endTime != "":
+        endTime = endTime.split(" ")[0] + " " + endTime.split(" ")[2] + " " + endTime.split(" ")[3] + ":00 " + str(year_end)
+        if int(year_end) > int(year):
+            year_start = str(int(year_start) - 1)
+            year_end = str(int(year_end) - 1)
+    if startTime != "" :
+        startTime = startTime.split(" ")[0]+ " " + startTime.split(" ")[2] + " " + startTime.split(" ")[3] + ":00 "+ str(year_start)
+
+    if submitTime != "" :
+        submitTime = submitTime.split(" ")[0]+ " " + submitTime.split(" ")[2] + " " + submitTime.split(" ")[3] + ":00 " + str(year_submit) 
+    # 替换key值为期望解析值
+    outputJob = {'jobId': jobInfo['JOBID'], 'jobIndex': jobInfo['JOBINDEX'], 'jobName': jobInfo['JOB_NAME'],
+                 'user': jobInfo['USER'], 'sourceCluster': jobInfo['SOURCE_CLUSTER'],
+                 'stat': str(statMap[jobInfo['STAT']]),
+                 'queue': jobInfo['QUEUE'], 'fromHost': jobInfo['FROM_HOST'], 'submitTime': submitTime,
+                 'startTime': startTime, 'finishTime': endTime,
+                 'execHome': jobInfo['OUTPUT_DIR'], 'outputFile': jobInfo['OUTPUT_FILE'],
+                 'errorFile': jobInfo['ERROR_FILE'], 'jobPriority': jobInfo['JOB_PRIORITY'],
+                 'execHost': jobInfo['EXEC_HOST'], 'jobDescription': jobInfo['JOB_DESCRIPTION'],
+                 'exitCode': jobInfo['EXIT_CODE'], 'pendReason': jobInfo['PEND_REASON'],
+                 'jobRunTime': jobInfo['RUN_TIME'], 'originState': jobInfo['STAT'], 'exitMsg': jobInfo['EXIT_REASON']}
+    if outputJob['execHome'] == '':
+        outputJob['execHome'] = jobInfo['EXEC_HOME']
+    nonArrayJobList.append(outputJob)
+
+    # 存储子作业状态到状态表中
+    subJobStat = jobInfo['STAT']
+    subJobId = jobInfo['JOBID']
+    statValArr = [0] * 7
+    if not arrayJobStatDict.has_key(subJobId):
+        arrayJobStatDict[subJobId] = statValArr
+    else:
+        statValArr = arrayJobStatDict[subJobId]
+    subJobStat = jobInfo['STAT']
+    if subJobStat == 'PEND':
+        statValArr[0] = statValArr[0] + 1
+    if subJobStat == 'DONE':
+        statValArr[1] = statValArr[1] + 1
+    if subJobStat == 'RUN':
+        statValArr[2] = statValArr[2] + 1
+    if subJobStat == 'EXIT':
+        statValArr[3] = statValArr[3] + 1
+    if (subJobStat == 'PSUSP') | (subJobStat == 'USUSP'):
+        statValArr[4] = statValArr[4] + 1
+    if subJobStat == 'SSUSP':
+        statValArr[5] = statValArr[5] + 1
+    if subJobStat == 'ZOMBI':
+        statValArr[6] = statValArr[6] + 1
+    arrayJobStatDict[subJobId] = statValArr
+
+jobIdSet = set()
+outputJobList = nonArrayJobList
+# 构造数组作业父作业信息
+for jobInfo in nonArrayJobList:
+    if int(jobInfo['jobIndex']) > 0:
+        jobId = jobInfo['jobId']
+        # 构造数组作业父作业信息
+        if jobId not in jobIdSet:
+            jobIdSet.add(jobId)
+            arrayJobInfo = os.popen(ARRAY_JOB_INFO_CMD + jobId).read().splitlines()
+            if len(arrayJobInfo) == 2:
+                arrayJobInfoValue = arrayJobInfo[1].split()
+                parentJobInfo = copy.deepcopy(jobInfo)
+                if len(arrayJobInfoValue) > 2:
+                    parentJobName = arrayJobInfoValue[1]
+                    parentJobInfo['jobName'] = parentJobName
+                    arrayJobStatArr = arrayJobStatDict[jobId]
+                    aggJobState(parentJobInfo, arrayJobStatArr)
+                    parentJobInfo['originState'] = parentJobInfo['stat']
+                    parentJobInfo['stat'] = str(statMap[parentJobInfo['stat']])
+                    parentJobInfo['jobIndex'] = 0
+                    # 调度器父作业runtime等信息默认不聚合，用户根据需要聚合
+                    parentJobInfo['jobRunTime'] = None
+                    parentJobInfo['startTime'] = None
+                    parentJobInfo['finishTime'] = None
+                    parentJobInfo['queue'] = None
+                    parentJobInfo['execHost'] = None
+                    parentJobInfo['outputFile'] = None
+                    parentJobInfo['errorFile'] = None
+                    parentJobInfo['execHome'] = None
+                    parentJobInfo['jobPriority'] = None
+                    parentJobInfo['exitCode'] = None
+                    parentJobInfo['pendReason'] = None
+                    outputJobList.append(parentJobInfo)
+outputStr = json.dumps(outputJobList)
+print(outputStr)

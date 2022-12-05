@@ -5,13 +5,16 @@ The Donau Portal enables the Donau Portal to connect to and manage multiple comp
 
 ```
 LSF Node Information Collection Script: node, nodeSample
-LSF Job Information Collection Script : job, jobSample
+LSF Job Information Collection Script : job, jobSample, job_date,jobSample_date
 LSF Job Submission Script             : submit
 LSF Job Operation Script              : stop, resume, rerun, suspend
 LSF Queue Query Script                : query-active
 ```
 
+**Note**:If the LSB_DISPLAY_YEAR parameter is not configured in the lsf.conf file of the LSF node, you need to modify the script job_date, jobSample_date file name job, jobSample, and overwrite the original script.
+
 #### Software Architecture
+
 Python2/Python3
 
 #### Operation 
@@ -20,9 +23,46 @@ Python2/Python3
 
    Note: INSTALL_PATH is the client installation directory and SCHEDULER_TYPE is the scheduler type.
 
-2. Change the owner of the script to the client installation user with permission 644.
+   <table> <tr> <td style='color:#fff;background:black'><pre>[root@client186 scheduler]# pwd</pre>
+   <pre>/share/share_lsf/huawei/portal/ac/scripts/scheduler</pre>
+   <pre>[root@client186 scheduler]# ll</pre>
+   <pre>total 8</pre>
+   <pre>drwx--x--x. 6 ccp_master ccs_master 60 Nov 28 17:21 LSF</pre>
+   <pre>-r-xr-xr-x. 1 ccp_master ccs_master 592 Nov 28 00:00 post-exec.sh</pre>
+   <pre>-r-xr-xr-x. 1 ccp_master ccs_master 673 Nov 28 00:00 pre-exec.sh</pre>
+   [root@client186 scheduler]# </td> </tr> </table>
 
-3. Execute the following command to modify the environment variable parameters in the script file:
+2. Upload the script in the attachment to the corresponding directory, the directory structure is as follows:
+
+   <table> <tr> <td style='color:#fff;background:black'><pre>[root@host34 scheduler]# tree LSF/</pre>
+   <pre>LSF/</pre>
+   <pre>├── collection
+   │   ├── job.sample
+   │   └── jobSample.sample
+   ├── job
+   │   ├── rerun.sample
+   │   ├── resume.sample
+   │   ├── stop.sample
+   │   ├── submit.sample
+   │   └── suspend.sample
+   ├── node
+   │   ├── node.sample
+   │   └── nodeSample.sample
+   └── queue
+       └── query-active.sample </td> </tr> </table>
+
+3. Change the owner of the script to the client installation user with permission 644.
+
+   <table> <tr> <td style='color:#fff;background:black'><pre>[root@host34 scheduler]# cd LSF/</pre>
+   <pre>[root@host34 LSF]# ll</pre>
+   <pre>total 0</pre>
+   <pre>drwx--x--x. 2 ccp_master ccs_master  48 Dec  1 09:18 collection</pre>
+   <pre>drwx--x--x. 2 ccp_master ccs_master 109 Dec  1 09:18 job</pre>
+   <pre>drwx--x--x. 2 ccp_master ccs_master  50 Dec  1 09:18 node</pre>
+   <pre>drwx--x--x. 2 ccp_master ccs_master  33 Dec  1 09:18 queue</pre>
+   [root@client186 scheduler]# </td> </tr> </table>
+
+4. Execute the following command to modify the environment variable parameters in the script file:
 
    ```sh
    sed -i "s#@SCHEDULER_PROFILE_PATH@#/opt/lsf/conf/profile.lsf#g" `grep @SCHEDULER_PROFILE_PATH@ -rl /opt/huawei/portal/ac/scripts/scheduler/LSF`
@@ -30,7 +70,7 @@ Python2/Python3
 
    Note: /opt/lsf/conf/profile.lsf is the environment variable path of the LSF scheduler; /opt/huawei/portal/ac/scripts/scheduler/LSF is the script directory of the current client node caller.
 
-4. Modify the fileformat file format of the script file to unix (if dos2unix is installed, you can use dos2unix filename1 filename2 filename3 to convert multiple files, if dos2unix is not installed, you can follow the steps below to modify the file format.)
+5. Modify the fileformat file format of the script file to unix (if dos2unix is installed, you can use dos2unix filename1 filename2 filename3 to convert multiple files, if dos2unix is not installed, you can follow the steps below to modify the file format.)
 
    a)     vim filename
 
