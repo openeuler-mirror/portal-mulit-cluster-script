@@ -6,7 +6,7 @@ import os
 import time
 
 LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
-                'timeout 10 lsload -w'
+                'timeout 10 lsload -l'
 
 nodeloads = os.popen(LSLOAD_CMD).read()
 nodeloadstr = nodeloads.split("\n")
@@ -14,15 +14,6 @@ nodes = []
 for index in range(1, len(nodeloadstr) - 1):
     temp=dict(zip(nodeloadstr[0].split(),nodeloadstr[index].split()))
     nodes.append(temp)
-
-LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
-                'timeout 10 lsload -o "HOST_NAME io"'
-
-nodeioloads = os.popen(LSLOAD_CMD).read()
-nodeioloadstr = nodeioloads.split("\n")
-nodesio = {}
-for index in range(1, len(nodeloadstr) - 1):
-    nodesio[nodeioloadstr[index].split(" ")[0]] = nodeioloadstr[index].split(" ")[1]
 
 BHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
                 'timeout 10 bhosts -w'
@@ -81,7 +72,7 @@ result = time.localtime(time.mktime(timeresult))
 sampletime = time.strftime('%Y/%m/%d %H:%M:%S',result)
 
 nodeinfoTmp = {'status': None, 'tmp': None, 'mem': None, 'r15m': None, 'r15s': None, 'ls': None, 'it': None,
-               'HOST_NAME': None, 'ut': None, 'swp': None, 'r1m': None, 'pg': None}
+               'HOST_NAME': None, 'ut': None, 'swp': None, 'r1m': None, 'pg': None, 'io' : None}
 for nodeinfo in nodes:
     for key in nodeinfo.keys():
         nodeinfoTmp[key] = nodeinfo[key]
@@ -107,7 +98,7 @@ for nodeinfo in nodes:
         "tmpFree": int(float(nodeinfoTmp['tmp'][:-1])) if nodeinfoTmp['tmp'] != None else None,
         "cpuUtil": float(nodeinfoTmp['ut'][:-1]) / 100 if nodeinfoTmp['ut'] != None else None,
         "loadAverage": None,
-        "ioRate": nodesio[nodeinfoTmp['HOST_NAME']] if nodesio[nodeinfoTmp['HOST_NAME']] != '-' else None,
+        "ioRate": nodeinfoTmp['io'] if nodeinfoTmp['io'] != '-' else None,
         "pageRate": nodeinfoTmp['pg'] if nodeinfoTmp['pg'] != None else None,
         "idleTime": None,
         "belongResourcePool": None,

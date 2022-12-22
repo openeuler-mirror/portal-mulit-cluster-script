@@ -15,4 +15,4 @@ else
     exit 2
 fi
 
-timeout 10 bqueues -o "QUEUE_NAME"
+timeout 10 bqueues | awk '{print $1}'
