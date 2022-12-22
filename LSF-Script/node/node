@@ -94,7 +94,7 @@ for nodearry in nodes:
 
 #执行bhosts
 BHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
-                'timeout 10 bhosts -o "HOST_NAME STATUS NGPUS"'
+                'timeout 10 bhosts -w'
 bhosts = os.popen(BHOSTS_CMD).read()
 bhoststr = bhosts.split("\n")
 bhosts = []
@@ -111,7 +111,7 @@ for hostinfo in nodeArrayList:
         if bhost['HOST_NAME'] == hostinfo['nodeName']:
             hostinfo['originStatus'] = bhost['STATUS']
             hostinfo['status'] = str(statusMap[bhost['STATUS']] if statusMap.keys().__contains__(bhost['STATUS']) else unknow)
-            hostinfo['nativeResources']['mGpu'] = bhost['NGPUS']
+            hostinfo['nativeResources']['mGpu'] = None
     for host in hosts:
         if host['HOST_NAME'] == hostinfo['nodeName']:
             hostinfo['nativeResources']['mCpu'] = host['ncpus']
