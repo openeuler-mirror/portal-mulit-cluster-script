@@ -119,6 +119,11 @@ statusMap = {'ok': 'OKAY', 'closed': 'CLOSED', 'closed_Adm': 'CLOSED', 'closed_B
              'unavail': 'UNAVAILABLE', 'unreach': 'UNAVAILABLE', 'closed_Full': 'CLOSED'}
 
 for hostinfo in nodeArrayList:
+    for bhost in bhosts:
+        if bhost['HOST_NAME'] == hostinfo['hostName']:
+            hostinfo['state'] = str(
+                statusMap[bhost['STATUS']] if statusMap.keys().__contains__(bhost['STATUS']) else unknow)
+            hostinfo['gpu'] = None
     for host in hosts:
         if host['HOST_NAME'] == hostinfo['hostName']:
             hostinfo['core'] = None if host['ncpus'] == '-' else host['ncpus']
@@ -126,11 +131,8 @@ for hostinfo in nodeArrayList:
             hostinfo['swap'] = None if host['maxswp'] == '-' else int(float(host['maxswp'][:-1])*1024)
             hostinfo['cpuModel'] = host['model']
             hostinfo['cpuBuildType'] = 'x86_64' if host['type'] == 'X86_64' else host['type']
-    for bhost in bhosts:
-        if bhost['HOST_NAME'] == hostinfo['hostName']:
-            hostinfo['state'] = str(
-                statusMap[bhost['STATUS']] if statusMap.keys().__contains__(bhost['STATUS']) else unknow)
-            hostinfo['gpu'] = None
+            if (hostinfo['state'] == 'CLOSED' and hostinfo['coreFree'] == 0):
+                    hostinfo['coreFree'] = host['ncpus']
     for cluster in bclusterinfo:
         hostinfo['cluster'] = cluster['CLUSTER_NAME']
     if hostinfo['core'] == None:
