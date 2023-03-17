@@ -43,6 +43,10 @@ import re
 # 	"status": "",
 # 	"originStatus": ""
 # }]
+def transferMem(mem):
+    if mem[-1:] == 'T':
+        return str(float(mem[:-1]) * 1024) + 'G'
+    return mem
 
 LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
                 'timeout 10 lsload -w'
@@ -86,7 +90,7 @@ for index in range(0, len(slotstr)):
 
 nodeArrayList = []
 for nodearry in nodes:
-    output = {"nativeResources": {"loadResources": {"cpuFree": slots[nodearry['HOST_NAME']] if slots.keys().__contains__(nodearry['HOST_NAME']) else 0,"gpuFree": "","memFree": nodearry['mem'] if nodearry.keys().__contains__('mem') else None},"mCpu": "","mGpu": "","mem": ""},
+    output = {"nativeResources": {"loadResources": {"cpuFree": slots[nodearry['HOST_NAME']] if slots.keys().__contains__(nodearry['HOST_NAME']) else 0,"gpuFree": "","memFree": transferMem(nodearry['mem']) if nodearry.keys().__contains__('mem') else None},"mCpu": "","mGpu": "","mem": ""},
     "nodeName": nodearry['HOST_NAME'],"numaInfo": {"architecture": ""},"powerSavingStatus": "",
     "status": "","originStatus": ""}
     nodeArrayList.append(output)
@@ -94,7 +98,7 @@ for nodearry in nodes:
 
 #执行bhosts
 BHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
-                'timeout 10 bhosts -w'
+                'timeout 10 bhosts -o "HOST_NAME STATUS NGPUS"'
 bhosts = os.popen(BHOSTS_CMD).read()
 bhoststr = bhosts.split("\n")
 bhosts = []
@@ -111,11 +115,11 @@ for hostinfo in nodeArrayList:
         if bhost['HOST_NAME'] == hostinfo['nodeName']:
             hostinfo['originStatus'] = bhost['STATUS']
             hostinfo['status'] = str(statusMap[bhost['STATUS']] if statusMap.keys().__contains__(bhost['STATUS']) else unknow)
-            hostinfo['nativeResources']['mGpu'] = None
+            hostinfo['nativeResources']['mGpu'] = bhost['NGPUS']
     for host in hosts:
         if host['HOST_NAME'] == hostinfo['nodeName']:
             hostinfo['nativeResources']['mCpu'] = host['ncpus']
-            hostinfo['nativeResources']['mem'] = host['maxmem']
+            hostinfo['nativeResources']['mem'] = transferMem(host['maxmem'])
             hostinfo['numaInfo']['architecture'] = host['type']
             if (hostinfo['status'] == 'CLOSED' and hostinfo['nativeResources']['loadResources']['cpuFree'] == 0):
                     hostinfo['nativeResources']['loadResources']['cpuFree'] = host['ncpus']
