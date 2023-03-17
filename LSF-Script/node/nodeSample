@@ -107,7 +107,7 @@ for nodeinfo in nodes:
         "tmpFree": transferMemToMB(nodeinfoTmp['tmp']),
         "cpuUtil": float(nodeinfoTmp['ut'][:-1]) / 100 if nodeinfoTmp['ut'] != None else None,
         "loadAverage": None,
-        "ioRate": nodesio[nodeinfoTmp['HOST_NAME']] if nodesio[nodeinfoTmp['HOST_NAME']] != '-' else None,
+        "ioRate": nodeinfoTmp['io'] if nodeinfoTmp['io'] != '-' else None,
         "pageRate": nodeinfoTmp['pg'] if nodeinfoTmp['pg'] != None else None,
         "idleTime": None,
         "belongResourcePool": None,
