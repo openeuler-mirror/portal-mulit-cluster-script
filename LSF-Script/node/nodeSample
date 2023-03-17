@@ -13,7 +13,7 @@ def transferMemToMB(mem):
     return int(float(mem[:-1]))
 
 LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
-                'timeout 10 lsload -w'
+                'timeout 10 lsload -l'
 
 nodeloads = os.popen(LSLOAD_CMD).read()
 nodeloadstr = nodeloads.split("\n")
@@ -22,17 +22,8 @@ for index in range(1, len(nodeloadstr) - 1):
     temp=dict(zip(nodeloadstr[0].split(),nodeloadstr[index].split()))
     nodes.append(temp)
 
-LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
-                'timeout 10 lsload -o "HOST_NAME io"'
-
-nodeioloads = os.popen(LSLOAD_CMD).read()
-nodeioloadstr = nodeioloads.split("\n")
-nodesio = {}
-for index in range(1, len(nodeloadstr) - 1):
-    nodesio[nodeioloadstr[index].split(" ")[0]] = nodeioloadstr[index].split(" ")[1]
-
 BHOSTS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
-                'timeout 10 bhosts -o "HOST_NAME STATUS NGPUS"'
+                'timeout 10 bhosts -w'
 bhosts = os.popen(BHOSTS_CMD).read()
 bhoststr = bhosts.split("\n")
 bhosts = []
@@ -88,7 +79,7 @@ result = time.localtime(time.mktime(timeresult))
 sampletime = time.strftime('%Y/%m/%d %H:%M:%S',result)
 
 nodeinfoTmp = {'status': None, 'tmp': None, 'mem': None, 'r15m': None, 'r15s': None, 'ls': None, 'it': None,
-               'HOST_NAME': None, 'ut': None, 'swp': None, 'r1m': None, 'pg': None}
+               'HOST_NAME': None, 'ut': None, 'swp': None, 'r1m': None, 'pg': None, 'io' : None}
 for nodeinfo in nodes:
     for key in nodeinfo.keys():
         nodeinfoTmp[key] = nodeinfo[key]
@@ -150,7 +141,7 @@ for hostinfo in nodeArrayList:
             hostinfo['cpuModel'] = host['model']
             hostinfo['cpuBuildType'] = 'x86_64' if host['type'] == 'X86_64' else host['type']
             if (hostinfo['state'] == 'CLOSED' and hostinfo['coreFree'] == 0):
-                hostinfo['coreFree'] = host['ncpus']
+                    hostinfo['coreFree'] = host['ncpus']
     for cluster in bclusterinfo:
         hostinfo['cluster'] = cluster['CLUSTER_NAME']
     if hostinfo['core'] == None:
