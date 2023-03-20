@@ -5,6 +5,13 @@ import json
 import os
 import time
 
+def transferMemToMB(mem):
+    if mem[-1:] == 'T':
+        return int(float(mem[:-1]) * 1024 * 1024)
+    elif mem[-1:] == 'G':
+        return int(float(mem[:-1]) * 1024)
+    return int(float(mem[:-1]))
+
 LSLOAD_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
                 'timeout 10 lsload -l'
 
@@ -78,8 +85,8 @@ for nodeinfo in nodes:
         nodeinfoTmp[key] = nodeinfo[key]
     memFreeTmp = None
     if nodeinfoTmp['mem'] != None:
-        memFreeTmp = int(float(nodeinfoTmp['mem'][:-1]) * 1024) if nodeinfoTmp['mem'][-1:] == 'G' else int(
-            float(nodeinfoTmp['mem'][:-1]))
+        # 0317修改：调用了转换方法
+        memFreeTmp = transferMemToMB(nodeinfoTmp['mem'])
     output = {
         "cluster": "",
         "timeStampL": sampletime,
@@ -93,9 +100,11 @@ for nodeinfo in nodes:
         "gpu": "",
         "gpuFree": None,
         "swap": "",
-        "swapFree": int(float(nodeinfoTmp['swp'][:-1]) * 1024) if nodeinfoTmp['swp'] != None else None,
+        # 0317修改：调用了转换方法
+        "swapFree": transferMemToMB(nodeinfoTmp['swp']),
         "tmp": None,
-        "tmpFree": int(float(nodeinfoTmp['tmp'][:-1])) if nodeinfoTmp['tmp'] != None else None,
+        # 0317修改：调用了转换方法
+        "tmpFree": transferMemToMB(nodeinfoTmp['tmp']),
         "cpuUtil": float(nodeinfoTmp['ut'][:-1]) / 100 if nodeinfoTmp['ut'] != None else None,
         "loadAverage": None,
         "ioRate": nodeinfoTmp['io'] if nodeinfoTmp['io'] != '-' else None,
@@ -127,8 +136,8 @@ for hostinfo in nodeArrayList:
     for host in hosts:
         if host['HOST_NAME'] == hostinfo['hostName']:
             hostinfo['core'] = None if host['ncpus'] == '-' else host['ncpus']
-            hostinfo['mem'] = None if host['maxmem'] == '-' else int(float(host['maxmem'][:-1])*1024)
-            hostinfo['swap'] = None if host['maxswp'] == '-' else int(float(host['maxswp'][:-1])*1024)
+            hostinfo['mem'] = None if host['maxmem'] == '-' else transferMemToMB(host['maxmem'])
+            hostinfo['swap'] = None if host['maxswp'] == '-' else transferMemToMB(host['maxswp'])
             hostinfo['cpuModel'] = host['model']
             hostinfo['cpuBuildType'] = 'x86_64' if host['type'] == 'X86_64' else host['type']
             if (hostinfo['state'] == 'CLOSED' and hostinfo['coreFree'] == 0):
