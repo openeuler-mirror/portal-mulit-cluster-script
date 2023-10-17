@@ -56,7 +56,8 @@ submit_job() {
     fi
 
     if [ "$ret_value" -eq 0 ]; then
-        echo "The job has been submitted successfully. Job ID is: [$job_result]."
+        first_job_index=$(bjobs -a -o "jobindex" ${job_result} | tail -n +2 | sort | head -n 1)
+        echo "The job has been submitted successfully. Job ID is: [$job_result]. First job index is: [$first_job_index]."
     elif [ "$ret_value" -eq 124 ]; then
         echo "$ret_value" 1>&2
         exit "$ret_value"

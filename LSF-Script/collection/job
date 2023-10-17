@@ -73,10 +73,8 @@ def strToJson(jobInfoStr):
 jobInfos = os.popen(JOB_INFOS_CMD).read()
 jobInfosArr = jobInfos.strip().split("\n")
 
-# 数组作业状态表 {'jobId':'PEND,DONE,RUN,EXIT,SSUSP,USUSP,PSUSP'}
-arrayJobStatDict = {}
 # 构造非数组作业及数组作业子作业信息 及数组作业状态表
-nonArrayJobList = []
+outputJobList = []
 for index in range(len(jobInfosArr)):
     if index == 0:
         continue
@@ -97,66 +95,15 @@ for index in range(len(jobInfosArr)):
                  'jobRunTime': jobInfo['RUN_TIME'], 'originState': jobInfo['STAT'], 'exitMsg': jobInfo['EXIT_REASON']}
     if outputJob['execHome'] == '':
         outputJob['execHome'] = jobInfo['EXEC_HOME']
-    nonArrayJobList.append(outputJob)
+    jobId = outputJob['jobId']
+    arrayJobInfo = os.popen(ARRAY_JOB_INFO_CMD + jobId).read().splitlines()
+    # 判断是否为数组作业
+    if len(arrayJobInfo) == 2:
+        arrayJobInfoValue = arrayJobInfo[1].split()
+        if len(arrayJobInfoValue) > 2:
+            outputJob['jobId'] = "{}.{}".format(jobId, outputJob['jobIndex'])
+            outputJob['jobIndex'] = 0
+    outputJobList.append(outputJob)
 
-    # 存储子作业状态到状态表中
-    subJobStat = jobInfo['STAT']
-    subJobId = jobInfo['JOBID']
-    statValArr = [0] * 7
-    if not arrayJobStatDict.has_key(subJobId):
-        arrayJobStatDict[subJobId] = statValArr
-    else:
-        statValArr = arrayJobStatDict[subJobId]
-    subJobStat = jobInfo['STAT']
-    if subJobStat == 'PEND':
-        statValArr[0] = statValArr[0] + 1
-    if subJobStat == 'DONE':
-        statValArr[1] = statValArr[1] + 1
-    if subJobStat == 'RUN':
-        statValArr[2] = statValArr[2] + 1
-    if subJobStat == 'EXIT':
-        statValArr[3] = statValArr[3] + 1
-    if (subJobStat == 'PSUSP') | (subJobStat == 'USUSP'):
-        statValArr[4] = statValArr[4] + 1
-    if subJobStat == 'SSUSP':
-        statValArr[5] = statValArr[5] + 1
-    if subJobStat == 'ZOMBI':
-        statValArr[6] = statValArr[6] + 1
-    arrayJobStatDict[subJobId] = statValArr
-
-jobIdSet = set()
-outputJobList = nonArrayJobList
-# 构造数组作业父作业信息
-for jobInfo in nonArrayJobList:
-    if int(jobInfo['jobIndex']) > 0:
-        jobId = jobInfo['jobId']
-        # 构造数组作业父作业信息
-        if jobId not in jobIdSet:
-            jobIdSet.add(jobId)
-            arrayJobInfo = os.popen(ARRAY_JOB_INFO_CMD + jobId).read().splitlines()
-            if len(arrayJobInfo) == 2:
-                arrayJobInfoValue = arrayJobInfo[1].split()
-                parentJobInfo = copy.deepcopy(jobInfo)
-                if len(arrayJobInfoValue) > 2:
-                    parentJobName = arrayJobInfoValue[1]
-                    parentJobInfo['jobName'] = parentJobName
-                    arrayJobStatArr = arrayJobStatDict[jobId]
-                    aggJobState(parentJobInfo, arrayJobStatArr)
-                    parentJobInfo['originState'] = parentJobInfo['stat']
-                    parentJobInfo['stat'] = str(statMap[parentJobInfo['stat']])
-                    parentJobInfo['jobIndex'] = 0
-                    # 调度器父作业runtime等信息默认不聚合，用户根据需要聚合
-                    parentJobInfo['jobRunTime'] = None
-                    parentJobInfo['startTime'] = None
-                    parentJobInfo['finishTime'] = None
-                    parentJobInfo['queue'] = None
-                    parentJobInfo['execHost'] = None
-                    parentJobInfo['outputFile'] = None
-                    parentJobInfo['errorFile'] = None
-                    parentJobInfo['execHome'] = None
-                    parentJobInfo['jobPriority'] = None
-                    parentJobInfo['exitCode'] = None
-                    parentJobInfo['pendReason'] = None
-                    outputJobList.append(parentJobInfo)
 outputStr = json.dumps(outputJobList)
 print(outputStr)
