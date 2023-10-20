@@ -37,19 +37,19 @@ Python2/Python3
    <table> <tr> <td style='color:#fff;background:black'><pre>[root@host34 scheduler]# tree LSF/</pre>
    <pre>LSF/</pre>
    <pre>├── collection
-   │   ├── job.sample
-   │   └── jobSample.sample
+   │   ├── job
+   │   └── jobSample
    ├── job
-   │   ├── rerun.sample
-   │   ├── resume.sample
-   │   ├── stop.sample
-   │   ├── submit.sample
-   │   └── suspend.sample
+   │   ├── rerun
+   │   ├── resume
+   │   ├── stop
+   │   ├── submit
+   │   └── suspend
    ├── node
-   │   ├── node.sample
-   │   └── nodeSample.sample
+   │   ├── node
+   │   └── nodeSample
    └── queue
-       └── query-active.sample </td> </tr> </table>
+       └── query-active </td> </tr> </table>
 
 3. 更改脚本的属主为client安装用户，权限为644
 
@@ -106,7 +106,7 @@ Python2/Python3
 
 #### 注意事项
 
-1. 当前脚本适配是针对HPC_22.0.0之后的版本；
+1. 当前脚本适配是针对HPC_23.0.0之后的版本；
 2. 严格按照操作步骤执行，否则可能会导致脚本执行失败
 
 #### 参与贡献

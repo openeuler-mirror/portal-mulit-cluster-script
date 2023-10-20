@@ -37,19 +37,19 @@ Python2/Python3
    <table> <tr> <td style='color:#fff;background:black'><pre>[root@host34 scheduler]# tree LSF/</pre>
    <pre>LSF/</pre>
    <pre>├── collection
-   │   ├── job.sample
-   │   └── jobSample.sample
+   │   ├── job
+   │   └── jobSample
    ├── job
-   │   ├── rerun.sample
-   │   ├── resume.sample
-   │   ├── stop.sample
-   │   ├── submit.sample
-   │   └── suspend.sample
+   │   ├── rerun
+   │   ├── resume
+   │   ├── stop
+   │   ├── submit
+   │   └── suspend
    ├── node
-   │   ├── node.sample
-   │   └── nodeSample.sample
+   │   ├── node
+   │   └── nodeSample
    └── queue
-       └── query-active.sample </td> </tr> </table>
+       └── query-active </td> </tr> </table>
 
 3. Change the owner of the script to the client installation user with permission 644.
 
@@ -106,7 +106,7 @@ Python2/Python3
 
 #### Precautions
 
-1.  The current script adaptation is for versions after HPC_22.0.0;
+1.  The current script adaptation is for versions after HPC_23.0.0;
 2.  Strictly follow the operation steps, otherwise the script may fail to execute.
 
 #### Contribution
