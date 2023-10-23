@@ -47,6 +47,13 @@ submit_job() {
     else
        submit_result=$(echo timeout 10 bsub -E ${_PRE_EXEC_SCRIPT_PATH} -Ep ${_POST_EXEC_SCRIPT_PATH} -outdir ${JOB_DIR} -o ${JOB_DIR}out.log -e ${JOB_DIR}error.log  -Jd "TEMPLATE=${_TEMPLATE_NAME},DISPLAY_FLAG=${VNC_DISPLAY_FLAG},SECURITY_LEVEL=${_SECURITY_LEVEL}" "$@" | bash)
     fi
+    # 获取文件路径和文件名
+    if [ ! -z "${SEC_INFO}" ]; then
+        path=$(dirname "$JOB_DIR")
+        name=$(basename "$JOB_DIR")
+        hideFile="${path}/.$name.txt"
+        echo "${SEC_INFO}" > "${hideFile}"
+    fi
     ret_value=$?
 
     if [ $ret_value -eq 0 ]; then
