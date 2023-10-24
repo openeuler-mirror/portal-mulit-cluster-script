@@ -122,10 +122,10 @@ for nodeinfo in nodes:
     nodeArrayList.append(output)
 
 # 基于第三方调度器向DONAU调度器状态映射Map
-statusMap = {'ok': 'OKAY', 'closed': 'CLOSED', 'closed_Adm': 'CLOSED', 'closed_Busy': 'CLOSED', 'closed_EGO': 'CLOSED',
-             'closed_Excl': 'CLOSED', 'closed_LIM': 'CLOSED',
-             'closed_Lock': 'CLOSED', 'closed_Wind': 'CLOSED', 'closed_RC': 'CLOSED', 'closed_CU_excl': 'CLOSED',
-             'unavail': 'UNAVAILABLE', 'unreach': 'UNAVAILABLE', 'closed_Full': 'CLOSED'}
+statusMap = {'ok': 'OK', 'closed': 'CLOSE', 'closed_Adm': 'CLOSE', 'closed_Busy': 'CLOSE', 'closed_EGO': 'CLOSE',
+             'closed_Excl': 'CLOSE', 'closed_LIM': 'CLOSE',
+             'closed_Lock': 'CLOSE', 'closed_Wind': 'CLOSE', 'closed_RC': 'CLOSE', 'closed_CU_excl': 'CLOSE',
+             'unavail': 'UNAVAILABLE', 'unreach': 'UNAVAILABLE', 'closed_Full': 'CLOSE'}
 
 for hostinfo in nodeArrayList:
     for bhost in bhosts:
