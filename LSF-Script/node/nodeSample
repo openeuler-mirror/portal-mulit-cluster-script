@@ -140,7 +140,7 @@ for hostinfo in nodeArrayList:
             hostinfo['swap'] = None if host['maxswp'] == '-' else transferMemToMB(host['maxswp'])
             hostinfo['cpuModel'] = host['model']
             hostinfo['cpuBuildType'] = 'x86_64' if host['type'] == 'X86_64' else host['type']
-            if (hostinfo['state'] == 'CLOSED' and hostinfo['coreFree'] == 0):
+            if (hostinfo['state'] == 'CLOSE' and hostinfo['coreFree'] == 0):
                     hostinfo['coreFree'] = host['ncpus']
     for cluster in bclusterinfo:
         hostinfo['cluster'] = cluster['CLUSTER_NAME']
