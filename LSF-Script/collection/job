@@ -16,6 +16,8 @@ JOB_INFOS_CMD = 'source @SCHEDULER_PROFILE_PATH@;' \
 
 ARRAY_JOB_INFO_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bjobs -A -w '
 
+ARRAY_SIZE_QUERY_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bjobs -a -o \"jobindex\" '
+
 # jobstatemap for ccp
 statMap = {'UNKWN': -1, 'RUN': 4, 'PSUSP': 2, 'USUSP': 2, 'SSUSP': 10, 'PEND': 1, 'DONE': 9, 'EXIT': 5, 'WAIT': 3, 'ZOMBI': -1}
 
@@ -97,12 +99,15 @@ for index in range(len(jobInfosArr)):
         outputJob['execHome'] = jobInfo['EXEC_HOME']
     jobId = outputJob['jobId']
     arrayJobInfo = os.popen(ARRAY_JOB_INFO_CMD + jobId).read().splitlines()
+    arraySize = len(os.popen(ARRAY_SIZE_QUERY_CMD + jobId).read().splitlines()) - 1
     # 判断是否为数组作业
     if len(arrayJobInfo) == 2:
         arrayJobInfoValue = arrayJobInfo[1].split()
         if len(arrayJobInfoValue) > 2:
             outputJob['jobId'] = "{}.{}".format(jobId, outputJob['jobIndex'])
             outputJob['jobIndex'] = 0
+            if arraySize > 1:
+                outputJob['arraySize'] = arraySize
     outputJobList.append(outputJob)
 
 outputStr = json.dumps(outputJobList)
