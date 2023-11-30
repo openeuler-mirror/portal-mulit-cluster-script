@@ -7,6 +7,7 @@
 LSF节点信息采集脚本: node,nodeSample
 LSF作业信息采集脚本: job,jobSample,job_date,jobSample_date  
 LSF作业提交脚本: submit
+LSF作业查询脚本: query
 LSF作业操作脚本: stop, resume,rerun,suspend
 LSF队列查询脚本: query-active
 ````
@@ -19,7 +20,7 @@ Python2/Python3
 
 #### 操作教程
 
-1. 从网址 https://gitee.com/openeuler/portal-mulit-cluster-script 下载压缩包, 解压至{INSTALL_PATH}/huawei/portal/ac/scripts/scheduler/{SCHEDULER_TYPE}/目录下；
+1. 从网址 https://gitee.com/openeuler/portal-mulit-cluster-script/tree/HPC_23.0.0_release 下载压缩包, 解压至{INSTALL_PATH}/huawei/portal/ac/scripts/scheduler/{SCHEDULER_TYPE}/目录下；
 
    注：INSTALL_PATH为client安装目录，SCHEDULER_TYPE为调度器类型
 
@@ -40,6 +41,7 @@ Python2/Python3
    │   ├── job
    │   └── jobSample
    ├── job
+   │   ├── query
    │   ├── rerun
    │   ├── resume
    │   ├── stop
