@@ -4,6 +4,11 @@
 
 # An example script for query job from LSF cluster.
 # Method "main" needs to be declared in this script for job query.
+import json
+import os
+import sys
+import re
+from dateutil import parser
 
 # expected output format:
 """
@@ -90,16 +95,6 @@
     "code":"success"
 }
 """
-
-import json
-import os
-import sys
-import re
-from dateutil import parser
-
-B_JOBS_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bjobs -UF {} 2>&1'
-B_HIST_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bhist -UF {} 2>&1'
-
 JOB_ID_LIST = list()
 
 if len(sys.argv) > 1:
@@ -117,6 +112,9 @@ DATA_MAP = {
     'successData': [],
     'errorData': dict()
 }
+
+B_JOBS_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bjobs -UF {} 2>&1'
+B_HIST_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bhist -UF {} 2>&1'
 
 # jobStateMap for donau
 STATE_MAP = {
@@ -182,6 +180,8 @@ def _parse_job_infos(job_info):
                         dct['queue'] = _safe_get_value('Queue <', item)
                     elif item.strip().startswith('Command <'):
                         dct['cmd'] = _safe_get_value('Command <', item)
+                        if dct['jobName'] == '':
+                            dct['jobName'] = dct['cmd']
                     elif item.strip().startswith('Job Description <'):
                         dct['description'] = _safe_get_value('Job Description <', item)
                     elif item.strip().startswith('Status <'):
@@ -191,6 +191,8 @@ def _parse_job_infos(job_info):
             if 'Submitted from host ' in line:
                 dct['submitNode'] = _safe_get_value('Submitted from host <', line)
                 dct['execPath'] = _safe_get_value('CWD <', line)
+                if '$' in dct['execPath']:
+                    dct['execPath'] = '-'
                 output_file = _safe_get_value('Output File <', line)
                 if output_file:
                     dct.get('logRedirectPath')['stdoutRedirectPath'] = output_file
@@ -295,6 +297,8 @@ def _query_job_by_bhist(job_id):
                         dct['queue'] = _safe_get_value('Queue <', item)
                     elif item.strip().startswith('Command <'):
                         dct['cmd'] = _safe_get_value('Command <', item)
+                        if dct['jobName'] == '':
+                            dct['jobName'] = dct['cmd']
                     elif item.strip().startswith('Job Description <'):
                         dct['description'] = _safe_get_value('Job Description <', item)
                     elif item.strip().startswith('Status <'):
@@ -304,6 +308,8 @@ def _query_job_by_bhist(job_id):
             if 'Submitted from host ' in line:
                 dct['submitNode'] = _safe_get_value('Submitted from host <', line)
                 dct['execPath'] = _safe_get_value('CWD <', line)
+                if '$' in dct['execPath']:
+                    dct['execPath'] = '-'
                 output_file = _safe_get_value('Output File <', line)
                 if output_file:
                     dct.get('logRedirectPath')['stdoutRedirectPath'] = output_file
@@ -357,3 +363,4 @@ def _query_job_by_bhist(job_id):
 
 if __name__ == '__main__':
     main()
+
