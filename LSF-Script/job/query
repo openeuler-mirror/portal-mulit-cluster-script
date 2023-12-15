@@ -4,11 +4,6 @@
 
 # An example script for query job from LSF cluster.
 # Method "main" needs to be declared in this script for job query.
-import json
-import os
-import sys
-import re
-from dateutil import parser
 
 # expected output format:
 """
@@ -95,6 +90,16 @@ from dateutil import parser
     "code":"success"
 }
 """
+
+import json
+import os
+import sys
+import re
+from datetime import datetime
+
+B_JOBS_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bjobs -UF {} 2>&1'
+B_HIST_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bhist -UF {} 2>&1'
+
 JOB_ID_LIST = list()
 
 if len(sys.argv) > 1:
@@ -109,12 +114,9 @@ SUCCESS = 'successData'
 ERROR = 'errorData'
 
 DATA_MAP = {
-    'successData': [],
-    'errorData': dict()
+    SUCCESS: [],
+    ERROR: dict()
 }
-
-B_JOBS_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bjobs -UF {} 2>&1'
-B_HIST_CMD = 'source @SCHEDULER_PROFILE_PATH@; timeout 10 bhist -UF {} 2>&1'
 
 # jobStateMap for donau
 STATE_MAP = {
@@ -138,10 +140,35 @@ def main():
     else:
         for _job_id in JOB_ID_LIST:
             query_job_info_with_id(_job_id)
+    # 处理时间格式问题
+    _parse_format_time()
     result['message'] = 'List job detail infos successfully.'
     result['code'] = 'success'
     result['data'] = DATA_MAP
     print(json.dumps(result))
+
+
+def _parse_format_time():
+    success_data = DATA_MAP.get(SUCCESS)
+    if not success_data:
+        return
+    is_time_year_fmt = len(success_data[0]['createTime'].strip(':').split(' ')[-1]) == 4
+    for data in DATA_MAP.get(SUCCESS):
+        datetime_ = datetime.today()
+        for key in ['endTime', 'startTime', 'createTime']:
+            if not data[key]:
+                data[key] = '-'
+            else:
+                if is_time_year_fmt:
+                    data[key] = datetime.strftime(datetime.strptime(data[key], '%a %b %d %H:%M:%S %Y'), '%Y-%m-%dT%H:%M:%SZ')
+                else:
+                    value_time = datetime.strptime(data[key], '%a %b %d %H:%M:%S')
+                    value_time = value_time.replace(year=datetime_.year)
+                    if value_time > datetime_:
+                        value_time = value_time.replace(year=value_time.year-1)
+                    datetime_ = value_time
+                    data[key] = datetime.strftime(value_time, '%Y-%m-%dT%H:%M:%SZ')
+
 
 
 def query_job_info_with_id(job_id):
@@ -199,8 +226,7 @@ def _parse_job_infos(job_info):
                 error_file = _safe_get_value('Error File <', line)
                 if error_file:
                     dct.get('logRedirectPath')['stderrRedirectPath'] = error_file
-                datetime_struct = parser.parse(line.split(': Submitted from host')[0])
-                dct['createTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['createTime'] = line.split(': Submitted from host')[0]
                 pre_cmd = _safe_get_value('Pre-execution Command <', line)
                 if pre_cmd:
                     dct.get('preHook')['cmd'] = pre_cmd
@@ -210,23 +236,25 @@ def _parse_job_infos(job_info):
                 continue
             if ': Dispatched ' in line:
                 dct['taskExecNodes'] = _safe_get_value('on Host\\(s\\) <', line)
+            if ' Started ' in line:
+                match_str = ': Started '
+                dct['startTime'] = line.split(match_str)[0]
+                continue
             if ' started ' in line:
                 match_str = ' started '
                 if '[' in dct['jobId']:
                     index_val = re.findall(r'(\[.*?\])', dct['jobId'])[0]
                     match_str = ': ' + index_val + match_str
-                datetime_struct = parser.parse(line.split(match_str)[0])
-                dct['startTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['startTime'] = line.split(match_str)[0]
+                continue
             # bjobs查询时会展示作业状态，不需要在此更新job的状态
             if ': Done successfully.' in line:
                 dct['exitCode'] = 0
                 dct['exitMessage'] = 'Done successfully.'
-                datetime_struct = parser.parse(line.split(': Done successfully.')[0])
-                dct['endTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['endTime'] = line.split(': Done successfully.')[0]
                 continue
             if ': Completed <exit>' in line:
-                datetime_struct = parser.parse(line.split(': Completed <exit>')[0])
-                dct['endTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['endTime'] = line.split(': Completed <exit>')[0]
                 if ': Completed <exit>;' in line:
                     dct['exitMessage'] = line.split(': Completed <exit>;')[1]
             if 'Exited with exit code' in line:
@@ -316,8 +344,7 @@ def _query_job_by_bhist(job_id):
                 error_file = _safe_get_value('Error File <', line)
                 if error_file:
                     dct.get('logRedirectPath')['stderrRedirectPath'] = error_file
-                datetime_struct = parser.parse(line.split(': Submitted from host')[0])
-                dct['createTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['createTime'] = line.split(': Submitted from host')[0]
                 pre_cmd = _safe_get_value('Pre-execution Command <', line)
                 if pre_cmd:
                     dct.get('preHook')['cmd'] = pre_cmd
@@ -331,20 +358,17 @@ def _query_job_by_bhist(job_id):
                 dct['taskExecNodes'] = _safe_get_value('on Host\\(s\\) <', line)
             if ': Starting ' in line:
                 match_str = ': Starting'
-                datetime_struct = parser.parse(line.split(match_str)[0])
-                dct['startTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['startTime'] = line.split(match_str)[0]
             # bjobs查询时会展示作业状态，不需要在此更新job的状态
             if ': Done successfully.' in line:
                 dct['exitCode'] = 0
                 dct['exitMessage'] = 'Done successfully.'
-                datetime_struct = parser.parse(line.split(': Done successfully.')[0])
-                dct['endTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['endTime'] = line.split(': Done successfully.')[0]
                 dct['state'] = 'SUCCEEDED'
                 continue
             if ': Completed <exit>' in line:
                 dct['exitMessage'] = 'Done successfully'
-                datetime_struct = parser.parse(line.split(': Completed <exit>')[0])
-                dct['endTime'] = datetime_struct.strftime('%Y-%m-%dT%H:%M:%SZ')
+                dct['endTime'] = line.split(': Completed <exit>')[0]
                 dct['state'] = 'FAILED'
                 if ': Completed <exit>;' in line:
                     dct['exitMessage'] = line.split(': Completed <exit>;')[1]
@@ -363,4 +387,3 @@ def _query_job_by_bhist(job_id):
 
 if __name__ == '__main__':
     main()
-
