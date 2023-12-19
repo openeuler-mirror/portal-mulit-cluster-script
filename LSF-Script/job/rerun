@@ -18,7 +18,7 @@ for item in "$@"; do
     converted_item=$(convert "$item")
     converted_list+=("$converted_item")
   else
-          converted_list+=("$item")
+    converted_list+=("$item")
   fi
 done
 # 将数组转换为字符串
