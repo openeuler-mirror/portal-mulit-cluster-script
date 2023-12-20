@@ -8,6 +8,21 @@
 
 # PROFILE_PATH:  Profile file path of the scheduler.
 PROFILE_PATH=@SCHEDULER_PROFILE_PATH@
+# 将数字中的小数点.替换为方括号[]
+convert() {
+  echo "$1" | sed 's/\./\[/;s/$/\]/'
+}
+converted_list=()
+for item in "$@"; do
+  if [[ "$item" == *"."* ]]; then
+    converted_item=$(convert "$item")
+    converted_list+=("$converted_item")
+  else
+    converted_list+=("$item")
+  fi
+done
+# 将数组转换为字符串
+result=$(echo "${converted_list[@]}")
 if [ -f "$PROFILE_PATH" ]; then
     source "$PROFILE_PATH"
 else
@@ -16,7 +31,7 @@ else
 fi
 
 if [ "$#" -gt 0 ]; then
-    out=`timeout 10 brequeue -e -d "$@" 2>&1`
+    out=`timeout 10 brequeue -e -d ${result} 2>&1`
 else
     echo "Failed to run the command. The job ID list is not found." >&2
     exit 2
